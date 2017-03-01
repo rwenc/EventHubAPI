@@ -2,9 +2,6 @@ using System.Web.Http;
 using WebActivatorEx;
 using EventHubAPIApp;
 using Swashbuckle.Application;
-using TRex.Metadata;
-using Swashbuckle.Swagger;
-using System.Web.Http.Description;
 
 [assembly: PreApplicationStartMethod(typeof(SwaggerConfig), "Register")]
 
@@ -12,9 +9,6 @@ namespace EventHubAPIApp
 {
     public class SwaggerConfig
     {
-        /// <summary>
-        /// This is MOSTLY the default swashbuckle but I do create a custom document filter to add additional properties onto my object so I can pass in an object
-        /// </summary>
         public static void Register()
         {
             var thisAssembly = typeof(SwaggerConfig).Assembly;
@@ -39,8 +33,6 @@ namespace EventHubAPIApp
                         // additional fields by chaining methods off SingleApiVersion.
                         //
                         c.SingleApiVersion("v1", "EventHubAPIApp");
-                        c.ReleaseTheTRex();
-                        c.DocumentFilter<CustomDocumentFilter>();
 
                         // If your API has multiple versions, use "MultipleApiVersions" instead of "SingleApiVersion".
                         // In this case, you must provide a lambda that tells Swashbuckle which actions should be
@@ -65,6 +57,7 @@ namespace EventHubAPIApp
                         //c.BasicAuth("basic")
                         //    .Description("Basic HTTP Authentication");
                         //
+						// NOTE: You must also configure 'EnableApiKeySupport' below in the SwaggerUI section
                         //c.ApiKey("apiKey")
                         //    .Description("API Key Authentication")
                         //    .Name("apiKey")
@@ -99,6 +92,13 @@ namespace EventHubAPIApp
                         //
                         //c.OrderActionGroupsBy(new DescendingAlphabeticComparer());
 
+                        // If you annotate Controllers and API Types with
+                        // Xml comments (http://msdn.microsoft.com/en-us/library/b2s063f7(v=vs.110).aspx), you can incorporate
+                        // those comments into the generated docs and UI. You can enable this by providing the path to one or
+                        // more Xml comment files.
+                        //
+                        //c.IncludeXmlComments(GetXmlCommentsPath());
+
                         // Swashbuckle makes a best attempt at generating Swagger compliant JSON schemas for the various types
                         // exposed in your API. However, there may be occasions when more control of the output is needed.
                         // This is supported through the "MapType" and "SchemaFilter" options:
@@ -111,15 +111,11 @@ namespace EventHubAPIApp
                         // complex Schema, use a Schema filter.
                         //
                         //c.MapType<ProductType>(() => new Schema { type = "integer", format = "int32" });
-                        //
+
                         // If you want to post-modify "complex" Schemas once they've been generated, across the board or for a
                         // specific type, you can wire up one or more Schema filters.
                         //
                         //c.SchemaFilter<ApplySchemaVendorExtensions>();
-
-                        // Set this flag to omit schema property descriptions for any type properties decorated with the
-                        // Obsolete attribute 
-                        //c.IgnoreObsoleteProperties();
 
                         // In a Swagger 2.0 document, complex types are typically declared globally and referenced by unique
                         // Schema Id. By default, Swashbuckle does NOT use the full type name in Schema Ids. In most cases, this
@@ -128,6 +124,15 @@ namespace EventHubAPIApp
                         // need to opt out of this behavior to avoid Schema Id conflicts.
                         //
                         //c.UseFullTypeNameInSchemaIds();
+
+                        // Alternatively, you can provide your own custom strategy for inferring SchemaId's for
+                        // describing "complex" types in your API.
+                        //  
+                        //c.SchemaId(t => t.FullName.Contains('`') ? t.FullName.Substring(0, t.FullName.IndexOf('`')) : t.FullName);
+
+                        // Set this flag to omit schema property descriptions for any type properties decorated with the
+                        // Obsolete attribute 
+                        //c.IgnoreObsoleteProperties();
 
                         // In accordance with the built in JsonSerializer, Swashbuckle will, by default, describe enums as integers.
                         // You can change the serializer behavior by configuring the StringToEnumConverter globally or for a given
@@ -156,19 +161,17 @@ namespace EventHubAPIApp
                         //
                         //c.DocumentFilter<ApplyDocumentVendorExtensions>();
 
-                        // If you annonate Controllers and API Types with
-                        // Xml comments (http://msdn.microsoft.com/en-us/library/b2s063f7(v=vs.110).aspx), you can incorporate
-                        // those comments into the generated docs and UI. You can enable this by providing the path to one or
-                        // more Xml comment files.
-                        //
-                        //c.IncludeXmlComments(GetXmlCommentsPath());
-
                         // In contrast to WebApi, Swagger 2.0 does not include the query string component when mapping a URL
                         // to an action. As a result, Swashbuckle will raise an exception if it encounters multiple actions
                         // with the same path (sans query string) and HTTP method. You can workaround this by providing a
                         // custom strategy to pick a winner or merge the descriptions for the purposes of the Swagger docs 
                         //
                         //c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
+                        // Wrap the default SwaggerGenerator with additional behavior (e.g. caching) or provide an
+                        // alternative implementation for ISwaggerProvider with the CustomProvider option.
+                        //
+                        //c.CustomProvider((defaultProvider) => new CachingSwaggerProvider(defaultProvider));
                     })
                 .EnableSwaggerUi(c =>
                     {
@@ -202,6 +205,11 @@ namespace EventHubAPIApp
                         //
                         //c.DocExpansion(DocExpansion.List);
 
+                        // Specify which HTTP operations will have the 'Try it out!' option. An empty paramter list disables
+                        // it for all operations.
+                        //
+                        //c.SupportedSubmitMethods("GET", "HEAD");
+
                         // Use the CustomAsset option to provide your own version of assets used in the swagger-ui.
                         // It's typically used to instruct Swashbuckle to return your version instead of the default
                         // when a request is made for "index.html". As with all custom content, the file must be included
@@ -220,18 +228,19 @@ namespace EventHubAPIApp
                         // If your API supports the OAuth2 Implicit flow, and you've described it correctly, according to
                         // the Swagger 2.0 specification, you can enable UI support as shown below.
                         //
-                        //c.EnableOAuth2Support("test-client-id", "test-realm", "Swagger UI");
+                        //c.EnableOAuth2Support(
+                        //    clientId: "test-client-id",
+                        //    clientSecret: null,
+                        //    realm: "test-realm",
+                        //    appName: "Swagger UI"
+                        //    //additionalQueryStringParams: new Dictionary<string, string>() { { "foo", "bar" } }
+                        //);
+
+                        // If your API supports ApiKey, you can override the default values.
+                        // "apiKeyIn" can either be "query" or "header"                                                
+                        //
+                        //c.EnableApiKeySupport("apiKey", "header");
                     });
         }
-
-        internal class CustomDocumentFilter : IDocumentFilter
-        {
-            public void Apply(SwaggerDocument swaggerDoc, SchemaRegistry schemaRegistry, IApiExplorer apiExplorer)
-            {
-                swaggerDoc.definitions["Object"].vendorExtensions["additionalProperties"] = true;
-
-            }
-        }
-
     }
 }

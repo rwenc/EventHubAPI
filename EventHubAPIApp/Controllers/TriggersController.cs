@@ -1,16 +1,16 @@
 ﻿using EventHubAPIApp.Models;
-using Microsoft.ServiceBus.Messaging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Formatting;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Hosting;
+using Microsoft.ServiceBus.Messaging;
+using System.Net.Http.Formatting;
 using System.Web.Http;
 using TRex.Metadata;
 
